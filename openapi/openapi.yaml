@@ -1,0 +1,310 @@
+openapi: 3.0.3
+servers:
+- url: https://xcurator-staging.3pc.de
+  description: Staging server
+- url: http://localhost:8080
+  description: Development server
+info:
+  title: Embeddings Grid API service
+  version: 1.0.0
+  description: |
+    This services sorts a given image list on a 2D surface using the provided embeddings and returns the xy positions and image IDs for each input image.
+
+paths:
+  /ping:
+    get:
+      responses:
+        200:
+          description: Ping back
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PingResponse'
+  /sort:
+    post:
+      tags:
+        - Image embeddings list
+      summary: Arrange a list of image embeddings onto a 2D grid
+      description: |
+        <p>Arrange a list of image embeddings onto a 2D grid using FLAS
+        algorithm presented in the paper <a href="https://arxiv.org/abs/2205.04255v2">
+        Improved Evaluation and Generation of Grid Layouts using Distance
+        Preservation Quality and Linear Assignment Sorting</a>. FLAS is an
+        sorting algorithm optimized for speed while preserving high quality.<p>
+
+        <p>The service allows to create sorted 2D grid views out of a list of
+        images represented by an <code>float[]</code> embedding and an id. The embeddings
+        can have any dimension, but it is important that all elements of an
+        request have the same length. Utilizing the grid with significantly
+        large image embeddings may lead to a perceptible decrease in
+        computational speed during the arrangement calculation, as the
+        algorithm allocates additional processing resources to accommodate
+        the increased complexity of larger embedding data.</p>
+
+        <h2>Features</h2>
+        <h4>Seeded Placement of Elements:</h4>
+        <p>When arranging a list of image
+        embeddings using the FLAS algorithm, you can mark selected images as
+        "seeded." These seeded elements will serve as anchor points around
+        which the sorting algorithm will optimize the placement of the remaining
+        images. The FLAS algorithm will then work to create a balanced and visually
+        appealing layout while respecting the fixed positions of the seeded elements</p>
+
+        <h4>Oversized 2x2 Grid Elements:</h4>
+        <p>The oversized elements feature allows you to create visually stunning
+        grid layouts by designating specific seeded elements to occupy multiple
+        slots on the grid, enlarging them to 2x2 size, and intelligently replicating
+        the images within the area, unlocking new aesthetic possibilities in
+        your image arrangements.</p>
+
+        <h4>Adjustable Size Factor for Adding Free Space:</h4>
+        <p>To enhance the aesthetic quality of the grid layout, the service
+        offers the ability to adjust a size factor that adds free space between
+        elements. This feature allows you to control the spacing between images,
+        helping to avoid clutter and create a more visually appealing grid. By
+        fine-tuning the size factor, you can strike the right balance between
+        compactness and readability in the resulting grid view.</p>
+
+        <h4>Infinit Grid Using Wrapped Mode:</h4>
+        <p>The wrapped mode calculation of the grid to produce
+        a seamless image grid tile that can be placed next to another without
+        any visible borders or disruptions, creating the illusion of a continuous
+        and infinite area when these tiles are tiled together.</p>
+
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SortingRequest'
+      responses:
+        200:
+          description: Sorted image grid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SortingResponse'
+        400:
+          description: bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClientErrorResponse"
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorResponse"
+components:
+  schemas:
+    PingResponse:
+      title: PingResponse
+      required:
+        - msg
+      type: object
+      description: Simple JSON ping response endpoint
+      example: { "msg": "Ping back" }
+      properties:
+        msg:
+          type: string
+          example: "Ping back"
+    SortingRequest:
+      title: SortingRequest
+      required:
+        - images
+        - grid
+      type: object
+      description: |
+              Request to arrange a given list of images with respect to
+              the given grid specification.
+
+      example: [{ uid: "af30", embedding: "ZGM2NmFhMDgtZmFmYS00YzZmLWFjNWYtYzRmMmI5N2Q2OTE1Cg==" }]
+      properties:
+        images:
+          type: array
+          items:
+            type: object
+            required:
+              - id
+              - embedding
+            properties:
+              id:
+                type: string
+                description: page Id of the flyer page
+                example: 408468fd-ce11
+                minLength: 1
+                maxLength: 512
+              embedding:
+                type: string
+                description: Base64 encoded list of floats
+                example: ZGM2NmFhMDgtZmFmYS00YzZmLWFjNWYtYzRmMmI5N2Q2OTE1Cg==
+                minLength: 1
+              seed_column:
+                type: integer
+                description: The column coordinate this image should be seeded on the grid
+                example: 2
+                default: -1
+              seed_row:
+                type: integer
+                description: The row coordinate this image should be seeded on grid
+                example: 3
+                default: -1
+              size_cols:
+                type: integer
+                description: The number of columns the element should span over
+                example: 2
+                default: 1
+                minimum: 1
+                maximum: 2
+              size_rows:
+                type: integer
+                description: The number of columns the element should span over
+                example: 2
+                default: 1
+                minimum: 1
+                maximum: 2
+        grid:
+          type: object
+          description: The rows and columns of the grid
+          required:
+            - wrapped_mode
+            - aspect_ratio
+          properties:
+            wrapped_mode:
+              type: boolean
+              description: Should a endless grid be calculated that wraps on the edges?
+              example: true
+            seed:
+              type: integer
+              description: Random seed to use for reproducible calls
+              example: 42
+            aspect_ratio:
+              type: number
+              description: |
+                The ratio between the columns and rows of the grid as float number. Below 1.0 means portrait, 1.0 is squared, above 1.0 means landscape shape.
+                Some examples:
+                  - 1:1 is 1.0
+                  - 4:3 is 1.33
+                  - 16:9 is 1.77
+              example: 1.33
+              minimum: 0.0
+              exclusiveMinimum: true
+            size_factor:
+              type: integer
+              description: A integer between 1 and 100 that means the percentage of additional space the canvas should provide.
+              example: 17
+              default: 0
+              minimum: 0
+              maximum: 1000
+          example: { "aspect_ratio": 1.00, "size_factor": 17, "wrapped_mode": "true" }
+
+
+
+    SortingResponse:
+      title: SortingResponse
+      required:
+        - sorted_images
+        - grid
+      type: object
+      properties:
+        sorted_images:
+          type: array
+          description: The image uid and its position on the grid
+          items:
+            type: object
+            required:
+              - id
+              - row
+              - column
+              - size_cols
+              - size_rows
+            properties:
+              id:
+                type: string
+                description: page Id of the flyer page
+                example: 408468fd-ce11-46e2-b5c0-936a980a42ef
+              row:
+                type: integer
+                description: The row the image is placed on the grid.
+                example: 6
+                minimum: 0
+              column:
+                type: integer
+                description: The column the image is placed on the grid.
+                example: 10
+                minimum: 0
+              size_cols:
+                type: integer
+                description: Number of columns the image span over
+                example: 2
+                minimum: 1
+                default: 1
+              size_rows:
+                type: integer
+                description: Number of rows the image span over
+                example: 2
+                minimum: 1
+                default: 1
+
+        grid:
+          type: object
+          description: The rows and columns of the grid
+          example: { columns: 10, rows: 3 }
+          required:
+            - columns
+            - rows
+          properties:
+            columns:
+              type: integer
+              description: The number of columns of the grid
+              example: 10
+            rows:
+              type: integer
+              description: The number of rows of the grid
+              example: 6
+
+    ClientErrorResponse:
+      description: Client error, mostly syntax or attribute errors that the client can solve
+      required:
+        - timestamp
+        - status
+        - error
+        - path
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+          example: 2023-07-29T19:56:10.347+00:00
+        status:
+          type: integer
+          format: int32
+          example: 400
+        error:
+          type: string
+          example: Wrong parameter value X given, expected Y
+        path:
+          type: string
+          example: /sort
+
+    ServerErrorResponse:
+      description: Some error on server side that cannot be solved by the client
+      required:
+        - timestamp
+        - status
+        - error
+        - path
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+          example: 2023-07-29T19:56:10.347+00:00
+        status:
+          type: integer
+          format: int32
+          example: 500
+        error:
+          type: string
+          example: Internal server error
+        path:
+          type: string
+          example: /sort
