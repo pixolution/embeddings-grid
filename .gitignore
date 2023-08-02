@@ -1,0 +1,12 @@
+.gradle
+build
+/.openapi-generator-ignore
+/.openapi-generator/
+/pom.xml
+*.swp
+.settings
+.project
+.classpath
+/bin
+/generated_openapi
+/libs
