@@ -5,6 +5,8 @@ with embeddings to a 2D image grid. It implements LAS and FLAS described in the 
 
 Made by [pixolution GmbH, Berlin](https://pixolution.org) as part of the [xCurator research project](https://www.landesmuseum.de/digital/projekte-museum-der-zukunft/kuenstliche-intelligenz-museum/ki-pilotin-werden). The [embeddings-grid](https://github.com/pixolution/embeddings-grid) project code is available under the Apache License 2.0. See the [LICENSE](./LICENSE) file for more info.
 
+<img src="./examples/BLM_sorted_color_shape.jpeg" width="400" height="400" />
+
 ## Getting started
 The API is defined in `openapi/openapi.yaml`. [OpenAPI Generator](https://plugins.gradle.org/plugin/org.openapi.generator) is used to generate spring boot 2.7.6 java source code (spring 5.3.24).
 
@@ -40,8 +42,14 @@ curl -X 'POST' \
 ./gradlew test
 ```
 
+* Build and run production docker image (requires docker locally installed)
+```
+./gradlew docker
+docker run -p8080:8080 embeddings-grid:latest
+```
+
 ## Examples
 The `examples/` contains a response and request json example and a HTML visualization of the results. The embedding used in the examples is a color embedding developed by [pixolution GmbH, Berlin](https://pixolution.org) and is not part of this project.
  * [JSON request](./examples/response.json) example using ~1000 [BLM](https://www.landesmuseum.de/digital) images and the corresponding [JSON response](./examples/request.json)
  * [HTML visualization of the response](./examples/html_urls/BLM_sorted_color_shape.html) that uses URLs to https://expotest.bsz-bw.de/blm/digitaler-katalog/
- * [HTML visualization of the response](./examples/html_local/BLM_sorted_color_shape.html) that uses the downloaded subset of images located in the `examples/html_local/BLM_sorted_color_shape-Dateien/` folder
+ * [HTML visualization of the response rendered as JPG image](./examples/BLM_sorted_color_shape.jpeg)
